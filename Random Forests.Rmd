@@ -1,0 +1,102 @@
+---
+title: "Random Forests"
+author: "Aditya Khera"
+date: "2023-05-07"
+output: pdf_document
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(ggExtra)
+library(patchwork)
+library(rsample)
+library(dplyr)
+library(caret)
+library(tidymodels)
+```
+
+## Data split
+```{r}
+data <- read.csv("/Users/adityakhera/Documents/GitHub/Modeling-Dynamic-Pricing-in-US-Hotels/filtered_data.csv")
+model_data <- data[,-c(1,2)]
+
+set.seed(1)
+training.samples <- model_data$adr %>%
+  createDataPartition(p = 0.8, list = FALSE)
+train.data  <- model_data[training.samples, ]
+test.data <- model_data[-training.samples, ]
+```
+
+```{r}
+set.seed(2)
+randctrl <- trainControl(method="cv",
+number = 10, search = "random", savePredictions = T)
+
+softrf <- train(adr ~., data = train.data, method = "ranger",
+               trControl = randctrl)
+
+softrf$bestTune
+```
+
+## Building the model
+```{r}
+rf_grid <- expand.grid(
+  .splitrule = c("extratrees", "variance"),
+  .min.node.size = c(6, 7, 8, 9, 11, 13, 15),
+  .mtry = c(3, 5, 7, 9)
+                       )
+set.seed(1)
+fitControl_1 <- trainControl(method = "cv",
+                             number = 5)
+
+RF_model <- train(adr ~ ., data = train.data,
+                  method = "ranger",
+                  trControl = fitControl_1,
+                  verbose = FALSE, 
+                  metric = "Rsquared",
+                  tuneGrid = rf_grid,
+                  num.tree = 300)
+
+RF_model$bestTune
+
+set.seed(2)
+fitControl_final <- trainControl(method = "none")
+RF_final <- train(adr ~., data = train.data,
+                  method = "ranger",
+                  trControl = fitControl_final,
+                  verbose = FALSE,
+                  metric = "Rsquared",
+                  tuneGrid = data.frame(
+                    .mtry = 3,
+                    .min.node.size = 6,
+                    .splitrule = "variance"),
+                  num.tree = 300
+                  )
+
+RF_pred_train <- predict(RF_final, newdata = train.data)
+RF_pred_test <- predict(RF_final, newdata = test.data)
+```
+
+## Train Error
+```{r}
+n <- nrow(train.data)
+res_squared <- (train.data$adr-RF_pred_train)^2
+train_loss <- sqrt(sum(res_squared)/n)
+train_loss
+
+```
+
+```{r}
+print(head(RF_model$results %>% arrange(desc(Rsquared))))
+ggplot(RF_model, metric = "Rsquared")
+```
+
+## Test Error
+```{r}
+n <- nrow(test.data)
+res_squared <- (test.data$adr-RF_pred_test)^2
+test_loss <- sqrt(sum(res_squared)/n)
+test_loss
+```
+

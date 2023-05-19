@@ -1,0 +1,99 @@
+---
+title: "KMeans"
+author: "Aditya Khera"
+date: "2023-05-07"
+output: pdf_document
+---
+```{r include=FALSE}
+library(caret)
+library(tidyverse)
+library(ggplot2)
+library(ggExtra)
+library(patchwork)
+library(rsample)
+library(dplyr)
+library(tidymodels)
+```
+
+
+```{r}
+data <- read.csv("/Users/adityakhera/Documents/GitHub/Modeling-Dynamic-Pricing-in-US-Hotels/filtered_data.csv")
+model_data <- data[,-c(1,2)]
+
+set.seed(123)
+training.samples <- model_data$adr %>%
+  createDataPartition(p = 0.8, list = FALSE)
+train.data  <- model_data[training.samples, ]
+test.data <- model_data[-training.samples, ]
+
+```
+
+## Randomized model
+```{r}
+set.seed(2)
+randctrl <- trainControl(method="cv",
+number = 10, search = "random", savePredictions = T)
+
+softkmeans <- train(adr ~., data = train.data, method = "knn",
+               trControl = randctrl)
+
+softkmeans$bestTune
+```
+Random selection is not helpful hear, we should just go with standard 5,7,9 neighbors.
+
+
+## Building the model!
+```{r}
+set.seed(123)
+ctrl <- trainControl(method="cv",
+                     number = 5,
+                     savePredictions = T)
+
+model <- train(adr ~., data = train.data, method = "knn",
+               trControl = ctrl)
+model$bestTune
+```
+
+## Plotting training predictions
+```{r}
+k7 <- filter(model$pred, k ==7)
+pred <- k7$pred
+
+plot(train.data$arrival_date_week_number,train.data$adr,
+     xlab="Date of Arrival",ylab="Average Daily Rate",main = "Training Predictions for Average Daily Rate Based on Arrival Week, k=7")
+points(train.data$arrival_date_week_number, pred,col=2)
+legend("topleft",legend=c("Training data","Predicted (Y)"),col=c("Black","Red"),pch=c(1,1))
+
+plot(train.data$lead_time,train.data$adr,
+     xlab="Total Requests",ylab="Average Daily Rate",main = "Training Predictions for Average Daily Rate Based on Total Requests, k=7")
+points(train.data$lead_time, pred,col=2)
+legend("topright",legend=c("Training data","Predicted (Y)"),col=c("Black","Red"),pch=c(1,1))
+
+```
+
+## Plotting test predictions
+```{r}
+predictions <- predict(model, newdata = test.data)
+plot(test.data$arrival_date_week_number,test.data$adr,
+     xlab="Date of Arrival",ylab="Average Daily Rate",main = "Testing Predictions for Average Daily Rate Based on Arrival Week, k=7")
+points(test.data$arrival_date_week_number, predictions,col=2)
+legend("topleft",legend=c("Testing data","Predicted (Y)"),col=c("Black","Red"),pch=c(1,1))
+
+plot(test.data$lead_time,test.data$adr,
+     xlab="Total Requests",ylab="Average Daily Rate",main = "Testing Predictions for Average Daily Rate Based on Total Requests, k=7")
+points(test.data$lead_time, predictions,col=2)
+legend("topright",legend=c("Testing data","Predicted (Y)"),col=c("Black","Red"),pch=c(1,1))
+
+
+```
+
+## Loss functions
+```{r}
+n <- nrow(test.data)
+res_squared <- (test.data$adr-predictions)^2
+loss <- sqrt(sum(res_squared)/n)
+loss
+
+min(model$results$RMSE)
+```
+

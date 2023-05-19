@@ -1,0 +1,51 @@
+---
+title: "EDA"
+author: "Aditya Khera"
+date: "2023-05-06"
+output: pdf_document
+---
+```{r, include=FALSE}
+library(ggplot2)
+```
+
+
+```{r}
+data <- read.csv("/Users/adityakhera/Documents/GitHub/Modeling-Dynamic-Pricing-in-US-Hotels/filtered_data.csv")
+```
+
+```{r}
+ ggplot(data = data) + 
+    geom_point(mapping = aes(x = arrival_date_week_number, y = adr),
+               color = "steelblue",
+               shape = 4) +
+    labs(title = "Average Daily Rate over Arrival Week",
+       subtitle = "From hotel pricing dataset",
+       x = "Arrival Week",
+       y = "Average Daily Rate")
+
+kids <- as.factor(data$children)
+ggplot(data = data) + 
+    geom_boxplot(mapping = aes(x=kids, y = adr), fill = "steelblue") +
+      labs(title = "Average Daily Rate versus Number of Children",
+       subtitle = "From hotel pricing dataset",
+       x = "Number of Children",
+       y = "Average Daily Rate")
+ 
+adult <- as.factor(data$adults)
+ggplot(data = data) + 
+    geom_boxplot(mapping = aes(x=adult, y = adr), fill = "steelblue") +
+    labs(title = "Average Daily Rate versus Number of Adults",
+       subtitle = "From hotel pricing dataset",
+       x = "Number of Adults",
+       y = "Average Daily Rate")
+
+reqs <- as.factor(data$total_of_special_requests) 
+ggplot(data = data) + 
+    geom_boxplot(mapping = aes(x=reqs, y = adr), fill = "steelblue") +
+    labs(title = "Average Daily Rate versus Number of Accomodation Requests",
+       subtitle = "From hotel pricing dataset",
+       x = "Number of Accomodation Requests",
+       y = "Average Daily Rate")
+
+```
+
